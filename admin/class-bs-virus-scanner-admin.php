@@ -100,4 +100,54 @@ class Bs_Virus_Scanner_Admin {
 
 	}
 
+	public function add_plugin_settings_page() {
+		add_options_page( 'Virus Scanner', 'Virus Scanner', 'manage_options', $this->plugin_name, array( $this, 'render_settings_page' ) );
+	}
+
+	function render_settings_page() {
+		?>
+		<h1 class="wp-heading-inline">
+			<?php echo get_admin_page_title() ?>
+		</h1>
+		<form method="post" action="options.php">
+			<?php
+			settings_fields( 'bs_virus_scanner_general' );
+			do_settings_sections( $this->plugin_name );
+			submit_button();
+			?>
+		</form>
+		<?
+	}
+
+	public function add_plugin_settings() {
+		register_setting(
+			'bs_virus_scanner_general',
+			'bs_virus_scanner_api_key'
+		);
+
+		add_settings_section(
+			'bs_virus_scanner_general',
+			'General Settings',
+			array( $this, 'show_general_settings_section' ),
+			$this->plugin_name
+		);
+
+		add_settings_field(
+			'bs_virus_scanner_api_key',
+			'Cloudmersive API key',
+			array( $this, 'show_api_key_field' ),
+			$this->plugin_name,
+			'bs_virus_scanner_general'
+		);
+	}
+
+	function show_general_settings_section() {
+		// Block before fields
+	}
+
+	function show_api_key_field() {
+		$api_key = get_option( 'bs_virus_scanner_api_key' );
+		echo "<input type='text' class='regular-text bs_spam-protector-secret-key' name='bs_virus_scanner_api_key' value='" . (esc_attr( $api_key ) ?? '') . "'>";
+	}
+
 }

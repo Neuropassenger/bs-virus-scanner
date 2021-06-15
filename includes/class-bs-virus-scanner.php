@@ -111,6 +111,8 @@ class Bs_Virus_Scanner {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-bs-virus-scanner-i18n.php';
 
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-bs-virus-scanner-functions.php';
+
 		/**
 		 * The class responsible for defining all actions that occur in the admin area.
 		 */
@@ -121,6 +123,8 @@ class Bs_Virus_Scanner {
 		 * side of the site.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-bs-virus-scanner-public.php';
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'vendor/autoload.php';
 
 		$this->loader = new Bs_Virus_Scanner_Loader();
 
@@ -157,6 +161,9 @@ class Bs_Virus_Scanner {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 
+		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_plugin_settings_page' );
+		$this->loader->add_action( 'admin_init', $plugin_admin, 'add_plugin_settings' );
+
 	}
 
 	/**
@@ -172,6 +179,8 @@ class Bs_Virus_Scanner {
 
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+
+		$this->loader->add_filter( 'wp_handle_upload', $plugin_public, 'check_file_for_viruses' );
 
 	}
 
