@@ -10,4 +10,10 @@ class Bs_Virus_Scanner_Functions {
 		fwrite( $file, $text );
 		fclose( $file );
 	}
+
+    public static function array_push_autoinc( array &$array, $item ): int {
+        $next = sizeof($array);
+        $array[$next] = $item;
+        return $next;
+    }
 }

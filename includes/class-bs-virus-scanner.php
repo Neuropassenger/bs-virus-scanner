@@ -180,7 +180,15 @@ class Bs_Virus_Scanner {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 
-		$this->loader->add_filter( 'wp_handle_upload', $plugin_public, 'check_file_for_viruses' );
+		//$this->loader->add_filter( 'wp_handle_upload', $plugin_public, 'check_file_for_viruses' );
+
+		$this->loader->add_filter( 'wp_handle_upload_prefilter', $plugin_public, 'check_file_for_viruses' );
+		$this->loader->add_filter( 'wp_handle_sideload_prefilter', $plugin_public, 'check_file_for_viruses' );
+
+		//$this->loader->add_filter( 'wp_handle_upload', $plugin_public, 'schedule_file_scan' );
+
+		//$this->loader->add_filter( 'wp_handle_upload_overrides', $plugin_public, 'add_overrides', 10, 2 );
+		//$this->loader->add_filter( 'wp_handle_sideload_overrides', $plugin_public, 'add_overrides', 10, 2 );
 
 	}
 

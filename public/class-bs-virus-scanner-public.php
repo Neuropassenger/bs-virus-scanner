@@ -100,7 +100,7 @@ class Bs_Virus_Scanner_Public {
 
 	}
 
-	public function check_file_for_viruses( $res ) {
+	public function check_file_for_viruses( $file ) {
 		$api_key = get_option( 'bs_virus_scanner_api_key' );
 
 		// Configure API key authorization: Apikey
@@ -111,7 +111,7 @@ class Bs_Virus_Scanner_Public {
 			$config
 		);
 
-		$input_file = $res['file']; // \SplFileObject | Input file to perform the operation on.
+		$input_file = $file['tmp_name']; // \SplFileObject | Input file to perform the operation on.
 		$allow_executables = false; // bool | Set to false to block executable files (program code) from being allowed in the input file.  Default is false (recommended).
 		$allow_invalid_files = true; // bool | Set to false to block invalid files, such as a PDF file that is not really a valid PDF file, or a Word Document that is not a valid Word Document.  Default is false (recommended).
 		$allow_scripts = false; // bool | Set to false to block script files, such as a PHP files, Python scripts, and other malicious content or security threats that can be embedded in the file.  Set to true to allow these file types.  Default is false (recommended).
@@ -121,12 +121,22 @@ class Bs_Virus_Scanner_Public {
 
 		try {
 			$result = $apiInstance->scanFileAdvanced( $input_file, $allow_executables, $allow_invalid_files, $allow_scripts, $allow_password_protected_files, $allow_macros, $restrict_file_types );
-			Bs_Virus_Scanner_Functions::logit( $result );
+			// Is the file infected?
+            if ( ! $result->getCleanResult() ) {
+                Bs_Virus_Scanner_Functions::logit( $result, '[DANGER]: INFECTED FILE' );
+                $file['error'] = __( 'The uploaded file is infected!', $this->plugin_name );
+            }
 		} catch ( Exception $e ) {
-			echo 'Exception when calling ScanApi->scanFileAdvanced: ', $e->getMessage(), PHP_EOL;
+            Bs_Virus_Scanner_Functions::logit( $file, '[ERROR]: Error scanning file with Cloudmersive API' );
+            //$file['error'] = __( 'An error occurred while checking the file for viruses.', $this->plugin_name );
+            // TODO: вычислить хэш файла и добавить запись в таблицу `wp_bs_vs_scheduled_scans`
 		}
 
-		return $res;
+		return $file;
 	}
+
+	public function schedule_file_scan() {
+
+    }
 
 }
