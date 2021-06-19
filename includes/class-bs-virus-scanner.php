@@ -185,10 +185,22 @@ class Bs_Virus_Scanner {
 		$this->loader->add_filter( 'wp_handle_upload_prefilter', $plugin_public, 'check_file_for_viruses' );
 		$this->loader->add_filter( 'wp_handle_sideload_prefilter', $plugin_public, 'check_file_for_viruses' );
 
-		//$this->loader->add_filter( 'wp_handle_upload', $plugin_public, 'schedule_file_scan' );
+		//$this->loader->add_filter( 'wp_handle_upload', $plugin_public, 'process_file_upload' );
 
 		//$this->loader->add_filter( 'wp_handle_upload_overrides', $plugin_public, 'add_overrides', 10, 2 );
 		//$this->loader->add_filter( 'wp_handle_sideload_overrides', $plugin_public, 'add_overrides', 10, 2 );
+
+        // Generate a file hash
+        $this->loader->add_action( 'attachment_updated', $plugin_public, 'generate_file_hash', 15, 1 );
+        $this->loader->add_action( 'add_attachment', $plugin_public, 'generate_file_hash', 15, 1 );
+
+        // Move a file to the quarantine directory if needed
+        $this->loader->add_action( 'attachment_updated', $plugin_public, 'quarantine_file_upload', 20, 1 );
+        $this->loader->add_action( 'add_attachment', $plugin_public, 'quarantine_file_upload', 20, 1 );
+
+        // Finish work with a quarantined file
+        $this->loader->add_action( 'attachment_updated', $plugin_public, 'finish_quarantine_upload', 25, 1 );
+        $this->loader->add_action( 'add_attachment', $plugin_public, 'finish_quarantine_upload', 25, 1 );
 
 	}
 

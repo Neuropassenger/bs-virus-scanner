@@ -122,18 +122,87 @@ class Bs_Virus_Scanner_Public {
 		try {
 			$result = $apiInstance->scanFileAdvanced( $input_file, $allow_executables, $allow_invalid_files, $allow_scripts, $allow_password_protected_files, $allow_macros, $restrict_file_types );
 			// Is the file infected?
-            if ( ! $result->getCleanResult() ) {
+            if ( count( $result->getFoundViruses() ) > 0 ) {
                 Bs_Virus_Scanner_Functions::logit( $result, '[DANGER]: INFECTED FILE' );
                 $file['error'] = __( 'The uploaded file is infected!', $this->plugin_name );
             }
 		} catch ( Exception $e ) {
             Bs_Virus_Scanner_Functions::logit( $file, '[ERROR]: Error scanning file with Cloudmersive API' );
-            //$file['error'] = __( 'An error occurred while checking the file for viruses.', $this->plugin_name );
-            // TODO: вычислить хэш файла и добавить запись в таблицу `wp_bs_vs_scheduled_scans`
+
+            // Calculate file hash
+            $file_hash = hash_file( 'sha224', $input_file );
+            $failed_scan_hashes = get_option( 'bs_virus_scanner_failed_scan_hashes', array() );
+            $failed_scan_hashes[] = $file_hash;
+            update_option( 'bs_virus_scanner_failed_scan_hashes', $failed_scan_hashes );
 		}
 
 		return $file;
 	}
+
+    public function generate_file_hash( $post_id ) {
+        $file_hash = hash_file( 'sha224', get_attached_file( $post_id ) );
+        update_post_meta( $post_id, 'bs_virus_scanner_file_hash', $file_hash );
+    }
+
+    /**
+     *
+     * @param $post_id
+     */
+    public function quarantine_file_upload( $post_id ) {
+        // We can get the hash of the file and be sure that it exists, since it is calculated and stored before this function
+        $file_hash = get_post_meta( $post_id, 'bs_virus_scanner_file_hash', true );
+        // But still make sure that the hash was calculated :)
+        if ( empty( $file_hash ) )
+            return;
+
+        if ( Bs_Virus_Scanner_Functions::is_scan_failed( $file_hash ) ) {
+            // We must move the file to the temporary quarantine directory for later scanning
+            $public_name = get_attached_file( $post_id );
+            $quarantine_dir_path = get_option( 'bs_virus_scanner_quarantine_dir' );
+            if ( empty( $quarantine_dir_path ) ) {
+                return;
+            } elseif ( file_exists( $quarantine_dir_path ) ) {
+                $public_path_info = pathinfo( $public_name );
+                $quarantine_name =  $quarantine_dir_path . '/' . $file_hash . '.' . $public_path_info['extension'];
+
+                // Move the file
+                $file_quarantined = @copy( $public_name, $quarantine_name );
+                // Delete the file
+                unlink( $public_name );
+            } else {
+                return;
+            }
+
+            // If the file was successfully moved to quarantine
+            if ( $file_quarantined ) {
+                // Let's write information about the file to the quarantine table
+                global $wpdb;
+                $quarantine_table_name = $wpdb->prefix . 'bs_vs_quarantine';
+
+                $wpdb->insert( $quarantine_table_name, array(
+                    'hash'              =>  $file_hash,
+                    'public_name'       =>  $public_name,
+                    'quarantine_name'   =>  $quarantine_name,
+                    'status'            =>  'unscanned'
+                ), array( '%s', '%s', '%s', '%s' ) );
+            }
+        }
+    }
+
+    public function finish_quarantine_upload( $post_id ): WP_Error {
+        $file_hash = get_post_meta( $post_id, 'bs_virus_scanner_file_hash', true );
+        if ( Bs_Virus_Scanner_Functions::is_scan_failed( $file_hash ) ) {
+            // Remove the file hash from wp_options
+            $failed_scan_hashes = get_option( 'bs_virus_scanner_failed_scan_hashes', array() );
+            foreach ( $failed_scan_hashes as $key => $hash ) {
+                if ( $file_hash == $hash ) {
+                    unset( $failed_scan_hashes[$key] );
+                }
+            }
+
+            update_option( 'bs_virus_scanner_failed_scan_hashes', $failed_scan_hashes );
+        }
+    }
 
 	public function schedule_file_scan() {
 
