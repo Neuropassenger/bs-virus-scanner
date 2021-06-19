@@ -41,6 +41,7 @@ class Bs_Virus_Scanner_Activator {
 
         $sql_query = "CREATE TABLE {$table_name} (
 			id INT NOT NULL AUTO_INCREMENT,
+			post_id INT NOT NULL,
 			hash VARCHAR(100) NOT NULL,
 			public_name VARCHAR(1000) NOT NULL,
 			quarantine_name VARCHAR(1000) NOT NULL,

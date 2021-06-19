@@ -26,4 +26,8 @@ class Bs_Virus_Scanner_Functions {
         else
             return false;
     }
+
+    public function are_viruses_found( $file_path ) {
+
+    }
 }
