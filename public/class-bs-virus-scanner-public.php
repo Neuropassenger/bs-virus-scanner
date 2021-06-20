@@ -163,7 +163,7 @@ class Bs_Virus_Scanner_Public {
                 return;
             } elseif ( file_exists( $quarantine_dir_path ) ) {
                 $public_path_info = pathinfo( $public_name );
-                $quarantine_name =  $quarantine_dir_path . '/' . $file_hash . '.' . $public_path_info['extension'];
+                $quarantine_name =  $quarantine_dir_path . '/' . $file_hash . '_' . time() . '.' . $public_path_info['extension'];
 
                 // Move the file
                 $file_quarantined = @copy( $public_name, $quarantine_name );
@@ -206,12 +206,15 @@ class Bs_Virus_Scanner_Public {
             update_option( 'bs_virus_scanner_failed_scan_hashes', $failed_scan_hashes );
         }
 
-        if ( ! wp_schedule_single_event( time() + 60 * 60, 'bs/check_quarantine_file_for_viruses', array( $post_id, $file_hash ) ) ) {
+        if ( ! wp_schedule_single_event( time() + 60 * 60, 'bs_vs/check_quarantine_file_for_viruses', array( $post_id, $file_hash ) ) ) {
             // TODO: Remove file and attachment on failed scheduling
         }
     }
 
 	public function check_quarantine_file_for_viruses($post_id, $file_hash ) {
+        global $wpdb;
+        $quarantine_table_name = $wpdb->prefix . 'bs_vs_quarantine';
+
         $file_path = get_attached_file( $post_id );
         $api_key = get_option( 'bs_virus_scanner_api_key' );
 
@@ -234,31 +237,52 @@ class Bs_Virus_Scanner_Public {
         try {
             $result = $apiInstance->scanFileAdvanced( $input_file, $allow_executables, $allow_invalid_files, $allow_scripts, $allow_password_protected_files, $allow_macros, $restrict_file_types );
             // Is the file infected?
+            // Remove the file, notify a user
             if ( count( $result->getFoundViruses() ) > 0 ) {
                 Bs_Virus_Scanner_Functions::logit( $result, '[DANGER]: INFECTED FILE' );
 
-                // Remove the file, notify a user
                 $post = get_post( $post_id );
                 $file_author = $post->post_author;
 
                 // Remove the file
                 unlink( $file_path );
-                // Remove the db record
-                if ( Bs_Virus_Scanner_Functions::delete_file_from_quarantine_table( $post_id ) === 0 ) {
-                    Bs_Virus_Scanner_Functions::logit( array( $post_id, $file_path ), '[ERROR]: check_quarantine_file_for_viruses | Can\'t remove a row from wp_bs_vs_quarantine' );
-                }
+                // Update the db record
+                $wpdb->update( $quarantine_table_name, array( 'status' => 'infected' ), array( 'post_id'   =>  $post_id ), array( '%s' ), array( '%d' ) );
                 // Remove the attachment
                 wp_delete_attachment( $post_id, true );
 
-            } else {
-                // TODO: Restore the file, update info in wp_bs_vs_quarantine
+                // TODO: notify a user
 
+                // Restore the file, update info in wp_bs_vs_quarantine
+            } else {
+                $quarantine_row = $wpdb->get_row( "SELECT * FROM {$quarantine_table_name} WHERE post_id = {$post_id}" );
+                if ( is_null( $quarantine_row ) ) {
+                    Bs_Virus_Scanner_Functions::logit( $post_id, '[ERROR]: check_quarantine_file_for_viruses | There is no record in the database with the current post ID' );
+                    return;
+                }
+
+                // Restore the file
+                $file_restored = @copy( $quarantine_row->quarantine_name, $quarantine_row->public_name );
+                if ( $file_restored ) {
+                    // Delete the quarantine file
+                    unlink( $quarantine_row->quarantine_name );
+
+                    // Update the db record
+                    $wpdb->update( $quarantine_table_name, array( 'status' => 'clean', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id'   =>  $post_id ), array( '%s', '%s' ), array( '%d' ) );
+                }
             }
+        // Reschedule scan on API failure
         } catch ( Exception $e ) {
             Bs_Virus_Scanner_Functions::logit( $file_path, '[ERROR]: Error scanning file with Cloudmersive API' );
 
-            // TODO: Schedule next scan
-
+            // Schedule next scan
+            // Remove file and attachment on failed scheduling
+            if ( ! wp_schedule_single_event( time() + 60 * 60, 'bs_vs/check_quarantine_file_for_viruses', array( $post_id, $file_hash ) ) ) {
+                $file_path = get_attached_file( $post_id );
+                unlink( $file_path );
+                wp_delete_attachment( $post_id, true );
+                $wpdb->update( $quarantine_table_name, array( 'status' => 'error', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id'   =>  $post_id ), array( '%s', '%s' ), array( '%d' ) );
+            }
         }
     }
 
