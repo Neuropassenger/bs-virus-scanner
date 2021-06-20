@@ -27,7 +27,9 @@ class Bs_Virus_Scanner_Functions {
             return false;
     }
 
-    public function are_viruses_found( $file_path ) {
-
+    public static function delete_file_from_quarantine_table( $post_id ) {
+        global $wpdb;
+        $quarantine_table_name = $wpdb->prefix . 'bs_vs_quarantine';
+        return $wpdb->delete( $quarantine_table_name, array( 'post_id'   =>  $post_id ), array( '%d' ) );
     }
 }

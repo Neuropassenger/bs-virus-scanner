@@ -40,14 +40,13 @@ class Bs_Virus_Scanner_Activator {
         $charset_collate = $wpdb->get_charset_collate();
 
         $sql_query = "CREATE TABLE {$table_name} (
-			id INT NOT NULL AUTO_INCREMENT,
 			post_id INT NOT NULL,
 			hash VARCHAR(100) NOT NULL,
 			public_name VARCHAR(1000) NOT NULL,
 			quarantine_name VARCHAR(1000) NOT NULL,
 			last_check DATETIME,
 			status VARCHAR(100) NOT NULL,
-			PRIMARY KEY (id)
+			PRIMARY KEY (post_id)
 		) {$charset_collate};";
 
         require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
