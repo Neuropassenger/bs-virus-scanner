@@ -202,7 +202,7 @@ class Bs_Virus_Scanner {
         $this->loader->add_action( 'attachment_updated', $plugin_public, 'finish_quarantine_upload', 25, 1 );
         $this->loader->add_action( 'add_attachment', $plugin_public, 'finish_quarantine_upload', 25, 1 );
 
-        $this->loader->add_action( 'bs_vs/check_quarantine_file_for_viruses', $plugin_public, 'check_quarantined_file_for_viruses', 10, 2 );
+        $this->loader->add_action( 'bs_vs/check_quarantine_file_for_viruses', $plugin_public, 'check_quarantine_file_for_viruses', 10, 2 );
 
 	}
 

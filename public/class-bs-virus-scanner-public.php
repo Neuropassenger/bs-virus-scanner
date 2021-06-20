@@ -207,7 +207,13 @@ class Bs_Virus_Scanner_Public {
         }
 
         if ( ! wp_schedule_single_event( time() + 60 * 60, 'bs_vs/check_quarantine_file_for_viruses', array( $post_id, $file_hash ) ) ) {
-            // TODO: Remove file and attachment on failed scheduling
+            global $wpdb;
+            $quarantine_table_name = $wpdb->prefix . 'bs_vs_quarantine';
+
+            $file_path = get_attached_file( $post_id );
+            unlink( $file_path );
+            wp_delete_attachment( $post_id, true );
+            $wpdb->update( $quarantine_table_name, array( 'status' => 'error', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id' => $post_id ), array( '%s', '%s' ), array( '%d' ) );
         }
     }
 
@@ -247,7 +253,7 @@ class Bs_Virus_Scanner_Public {
                 // Remove the file
                 unlink( $file_path );
                 // Update the db record
-                $wpdb->update( $quarantine_table_name, array( 'status' => 'infected' ), array( 'post_id'   =>  $post_id ), array( '%s' ), array( '%d' ) );
+                $wpdb->update( $quarantine_table_name, array( 'status' => 'infected', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id' => $post_id ), array( '%s', '%s' ), array( '%d' ) );
                 // Remove the attachment
                 wp_delete_attachment( $post_id, true );
 
@@ -268,7 +274,7 @@ class Bs_Virus_Scanner_Public {
                     unlink( $quarantine_row->quarantine_name );
 
                     // Update the db record
-                    $wpdb->update( $quarantine_table_name, array( 'status' => 'clean', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id'   =>  $post_id ), array( '%s', '%s' ), array( '%d' ) );
+                    $wpdb->update( $quarantine_table_name, array( 'status' => 'clean', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id' =>  $post_id ), array( '%s', '%s' ), array( '%d' ) );
                 }
             }
         // Reschedule scan on API failure
@@ -277,11 +283,11 @@ class Bs_Virus_Scanner_Public {
 
             // Schedule next scan
             // Remove file and attachment on failed scheduling
-            if ( ! wp_schedule_single_event( time() + 60 * 60, 'bs_vs/check_quarantine_file_for_viruses', array( $post_id, $file_hash ) ) ) {
+            if ( ! wp_schedule_single_event( time() + 60 * 60 * 24 * 7, 'bs_vs/check_quarantine_file_for_viruses', array( $post_id, $file_hash ) ) ) {
                 $file_path = get_attached_file( $post_id );
                 unlink( $file_path );
                 wp_delete_attachment( $post_id, true );
-                $wpdb->update( $quarantine_table_name, array( 'status' => 'error', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id'   =>  $post_id ), array( '%s', '%s' ), array( '%d' ) );
+                $wpdb->update( $quarantine_table_name, array( 'status' => 'error', 'last_check' => date( 'Y-m-d H:i:s', time() ) ), array( 'post_id' => $post_id ), array( '%s', '%s' ), array( '%d' ) );
             }
         }
     }
